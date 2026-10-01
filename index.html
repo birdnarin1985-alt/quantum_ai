@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>.dna Quantum Cosmic Voxel Engine (120 FPS)</title>
+    <style>
+        body, html { margin: 0; padding: 0; overflow: hidden; background: #000002; width: 100%; height: 100%; }
+        canvas { width: 100%; height: 100%; display: block; cursor: pointer; }
+        #hud {
+            position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+            color: #00ffcc; font-family: monospace; font-size: 12px; background: rgba(0,2,10,0.9);
+            padding: 10px 20px; border-radius: 15px; border: 1px solid #00ffcc77;
+            pointer-events: none; text-shadow: 0 0 10px #00ffcc; text-align: center;
+            z-index: 10; width: 90%; max-width: 440px; box-shadow: 0 0 20px rgba(0,255,204,0.3);
+        }
+        .highlight { color: #ff00ff; text-shadow: 0 0 10px #ff00ff; }
+    </style>
+</head>
+<body>
+    <div id="hud">
+        [ .dna QUANTUM COSMOS ENGINE ]<br>
+        FPS: <span id="fps-val" class="highlight">120</span> | พอยเตอร์ควอนตัม: <span id="nodes-val">4500</span> โหนด<br>
+        สถานะ: ดีดนิ้ว 1 ครั้ง จักรวาลจุติ (แตะจอเปลี่ยนฉากควอนตัม)
+    </div>
+    <canvas id="canvas3d"></canvas>
+
+    <script>
+        const hudFps = document.getElementById('fps-val');
+        const canvas = document.getElementById('canvas3d');
+        const gl = canvas.getContext('webgl', { antialias: false, powerPreference: "high-performance" });
+        if (!gl) alert('WebGL not supported!');
+
+        canvas.width = window.innerWidth * window.devicePixelRatio;
+        canvas.height = window.innerHeight * window.devicePixelRatio;
+
+        // Vertex Shader: ควอนตัมพอยเตอร์ & 4 ฉากจำลองพลังงานจักรวาล
+        const vsSource = `
+            attribute vec3 aPosition;
+            attribute vec3 aQuantumTarget;
+            attribute float aSeed;
+            uniform float uTime;
+            uniform float uTransition;
+            uniform int uScene;
+            varying vec3 vColor;
+
+            void main() {
+                // ควอนตัมซูเปอร์โพสิชัน: ผสมผสานตำแหน่งพอยเตอร์
+                vec3 p = mix(aPosition, aQuantumTarget, uTransition);
+                
+                // คลื่นความน่าจะเป็นและลมหายใจควอนตัม
+                float quantumWave = sin(uTime * 5.0 + aSeed * 20.0) * 0.08;
+                p.z += quantumWave * (uScene == 1 ? 2.5 : 1.0);
+
+                if (uScene == 3) {
+                    p *= (1.0 + sin(uTime * 3.0) * 0.2);
+                }
+
+                gl_Position = vec4(p, 1.0);
+                gl_PointSize = 4.5;
+
+                // สีสันแสงแห่งควอนตัม (Quantum Glow)
+                if (uScene == 0) vColor = vec3(1.0, 0.85, 0.3); // ทองควอนตัม
+                else if (uScene == 1) vColor = vec3(0.1, 0.95, 1.0); // ฟ้าเนบิวลา
+                else if (uScene == 2) vColor = vec3(1.0, 0.2, 0.7); // ชมพูสะท้อนมิติ
+                else vColor = vec3(0.2, 1.0, 0.4); // เขียวจุติใหม่
+            }
+        `;
+
+        const fsSource = `
+            precision mediump float;
+            varying vec3 vColor;
+            void main() {
+                float d = length(gl_PointCoord - vec2(0.5));
+                if (d > 0.5) discard;
+                gl_FragColor = vec4(vColor, 0.95);
+            }
+        `;
+
+        function createShader(gl, type, src) {
+            const s = gl.createShader(type);
+            gl.shaderSource(s, src);
+            gl.compileShader(s);
+            return s;
+        }
+
+        const program = gl.createProgram();
+        gl.attachShader(program, createShader(gl, gl.VERTEX_SHADER, vsSource));
+        gl.attachShader(program, createShader(gl, gl.FRAGMENT_SHADER, fsSource));
+        gl.linkProgram(program);
+        gl.useProgram(program);
+
+        // กำหนดพอยเตอร์ควอนตัม 4,500 โหนด ตามบัญชาช่างเบิร์ด
+        const count = 4500;
+        const pos1 = [], pos2 = [], seeds = [];
+
+        for (let i = 0; i < count; i++) {
+            let u = Math.random();
+            let v = Math.random();
+            let theta = u * 2.0 * Math.PI;
+            let phi = Math.acos(2.0 * v - 1.0);
+            let r = Math.cbrt(Math.random()) * 1.3;
+            
+            let x = r * Math.sin(phi) * Math.cos(theta);
+            let y = r * Math.sin(phi) * Math.sin(theta);
+            let z = r * Math.cos(phi);
+            pos1.push(x, y, z);
+
+            // โครงสร้างเป้าหมายควอนตัมกระจก
+            pos2.push(-x * 1.3, y * 1.3, z * 1.3);
+            seeds.push(Math.random());
+        }
+
+        const buf1 = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf1);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pos1), gl.STATIC_DRAW);
+        const aPos = gl.getAttribLocation(program, 'aPosition');
+        gl.enableVertexAttribArray(aPos);
+        gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 0, 0);
+
+        const buf2 = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf2);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pos2), gl.STATIC_DRAW);
+        const aTarget = gl.getAttribLocation(program, 'aQuantumTarget');
+        gl.enableVertexAttribArray(aTarget);
+        gl.vertexAttribPointer(aTarget, 3, gl.FLOAT, false, 0, 0);
+
+        const sBuf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, sBuf);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(seeds), gl.STATIC_DRAW);
+        const aSeed = gl.getAttribLocation(program, 'aSeed');
+        gl.enableVertexAttribArray(aSeed);
+        gl.vertexAttribPointer(aSeed, 1, gl.FLOAT, false, 0, 0);
+
+        const uTime = gl.getUniformLocation(program, 'uTime');
+        const uTrans = gl.getUniformLocation(program, 'uTransition');
+        const uScene = gl.getUniformLocation(program, 'uScene');
+
+        let currentScene = 0;
+        let transition = 0.0;
+        let startTime = Date.now();
+
+        // ฟังก์ชันอัปเดต 4 ฉากควอนตัม
+        function updateQuantumTargets(scene) {
+            const targets = [];
+            for (let i = 0; i < count; i++) {
+                let x = 0, y = 0, z = 0;
+                if (scene === 0) { // ฉาก 1: จุดกำเนิดควอนตัม
+                    x = (Math.random() - 0.5) * 1.5;
+                    y = (Math.random() - 0.5) * 1.5;
+                } else if (scene === 1) { // ฉาก 2: ใยแก้วจักรวาล (Cosmic Web)
+                    let angle = (i / count) * Math.PI * 10;
+                    let r = (i / count) * 1.4;
+                    x = Math.cos(angle) * r;
+                    y = Math.sin(angle) * r;
+                    z = Math.sin(x * 5.0) * 0.4;
+                } else if (scene === 2) { // ฉาก 3: มิติกระจกสะท้อน
+                    x = (Math.random() - 0.5) * 1.9;
+                    y = (Math.random() - 0.5) * 1.9;
+                    z = (Math.random() - 0.5) * 0.7;
+                } else { // ฉาก 4: การจุติใหม่ (Quantum Rebirth)
+                    let angle = i * 0.08;
+                    let r = 1.1;
+                    x = Math.cos(angle) * r;
+                    y = Math.sin(angle) * r;
+                }
+                targets.push(x, y, z);
+            }
+            gl.bindBuffer(gl.ARRAY_BUFFER, buf2);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(targets), gl.DYNAMIC_DRAW);
+        }
+
+        // แตะหน้าจอเพื่อดีดนิ้วเปลี่ยนฉากควอนตัม
+        canvas.addEventListener('click', () => {
+            currentScene = (currentScene + 1) % 4;
+            transition = 0.0;
+            updateQuantumTargets(currentScene);
+        });
+
+        updateQuantumTargets(0);
+
+        let frameCount = 0;
+        let lastFpsUpdate = performance.now();
+
+        function render(now) {
+            try {
+                let t = (Date.now() - startTime) * 0.001;
+                if (transition < 1.0) transition += 0.045; // ความเร็วควอนตัมสลับฉาก
+
+                frameCount++;
+                if (now - lastFpsUpdate >= 500) {
+                    let currentFps = Math.round((frameCount * 1000) / (now - lastFpsUpdate));
+                    hudFps.innerText = currentFps;
+                    frameCount = 0;
+                    lastFpsUpdate = now;
+                }
+
+                gl.viewport(0, 0, canvas.width, canvas.height);
+                gl.clearColor(0.0005, 0.001, 0.004, 1.0);
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+                gl.uniform1f(uTime, t);
+                gl.uniform1f(uTrans, transition);
+                gl.uniform1i(uScene, currentScene);
+
+                gl.drawArrays(gl.POINTS, 0, count);
+                requestAnimationFrame(render);
+            } catch (err) {
+                console.error("Quantum Self-Healing Catch:", err);
+            }
+        }
+        requestAnimationFrame(render);
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth * window.devicePixelRatio;
+            canvas.height = window.innerHeight * window.devicePixelRatio;
+        });
+    </script>
+</body>
+</html>
