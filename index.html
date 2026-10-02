@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>.dna Quantum Vector Field Landscape Engine (120 FPS)</title>
+    <style>
+        body, html { margin: 0; padding: 0; overflow: hidden; background: #000005; width: 100%; height: 100%; touch-action: none; }
+        canvas { width: 100%; height: 100%; display: block; cursor: grab; }
+        canvas:active { cursor: grabbing; }
+        #hud {
+            position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+            color: #00ffcc; font-family: monospace; font-size: 12px; background: rgba(0,2,12,0.92);
+            padding: 12px 20px; border-radius: 16px; border: 1px solid #00ffcc88;
+            pointer-events: none; text-shadow: 0 0 10px #00ffcc; text-align: center;
+            z-index: 10; width: 90%; max-width: 520px; box-shadow: 0 0 25px rgba(0,255,204,0.35);
+        }
+        .highlight { color: #ff00ff; text-shadow: 0 0 10px #ff00ff; }
+    </style>
+</head>
+<body>
+    <div id="hud">
+        [ .dna QUANTUM VECTOR FIELD LANDSCAPE ]<br>
+        FPS: <span id="fps-val" class="highlight">120</span> | โหนดสนามพลัง: <span id="nodes-val">100000</span> โหนด<br>
+        สถานะ: สมการสนามพลังควอนตัม 3D (ลากนิ้วหมุน / สกอร์ลซูม)
+    </div>
+    <canvas id="canvas3d"></canvas>
+
+    <script>
+        const hudFps = document.getElementById('fps-val');
+        const canvas = document.getElementById('canvas3d');
+        const gl = canvas.getContext('webgl', { antialias: false, powerPreference: "high-performance" });
+        if (!gl) alert('WebGL not supported!');
+
+        canvas.width = window.innerWidth * window.devicePixelRatio;
+        canvas.height = window.innerHeight * window.devicePixelRatio;
+
+        // Vertex Shader: Quantum Vector Field Potential & Phase Modulation
+        const vsSource = `
+            attribute vec3 aPosition;
+            attribute float aPotential;
+            attribute float aSeed;
+            uniform float uTime;
+            uniform vec2 uRotation;
+            uniform float uZoom;
+            varying vec3 vColor;
+
+            vec3 rotate(vec3 p, vec2 rot) {
+                float cX = cos(rot.y), sX = sin(rot.y);
+                float cY = cos(rot.x), sY = sin(rot.x);
+                mat3 rotY = mat3(cY, 0.0, sY, 0.0, 1.0, 0.0, -sY, 0.0, cY);
+                mat3 rotX = mat3(1.0, 0.0, 0.0, 0.0, cX, -sX, 0.0, sX, cX);
+                return rotX * rotY * p;
+            }
+
+            void main() {
+                vec3 p = aPosition;
+                
+                // สมการสนามพลังควอนตัม (Quantum Vector Field Modulation & Phase Wave)
+                float quantumPhase = sin(uTime * 2.0 + p.x * 3.0 + aSeed * 20.0) * 0.04;
+                float vectorDepth = aPotential + quantumPhase * (1.0 + abs(p.x) * 0.5);
+                p.z += vectorDepth;
+
+                vec3 rotatedP = rotate(p, uRotation);
+                rotatedP *= uZoom;
+
+                gl_Position = vec4(rotatedP.x, rotatedP.z * 1.4 + 0.15, -rotatedP.y * 0.4 + 1.25, rotatedP.y * 0.5 + 2.1);
+                gl_PointSize = 2.8;
+
+                // สีสันสนามพลังควอนตัม (Quantum Glow Spectrum)
+                if (aPotential > 0.7) {
+                    vColor = vec3(1.0, 0.85, 0.3); // ทองอร่าม (ยอดสนามพลัง/พระธาตุ)
+                } else if (aPotential > 0.2) {
+                    vColor = vec3(0.1, 0.8, 0.5); // เขียวสนามพลังป่าดอยสุเทพ
+                } else if (aPotential > -0.1) {
+                    vColor = vec3(0.2, 0.6, 1.0); // ฟ้าสนามพลังแม่ปิง
+                } else {
+                    vColor = vec3(0.7, 0.3, 0.9); // ม่วงครามสนามพลังมิติเมือง
+                }
+            }
+        `;
+
+        const fsSource = `
+            precision mediump float;
+            varying vec3 vColor;
+            void main() {
+                float d = length(gl_PointCoord - vec2(0.5));
+                if (d > 0.5) discard;
+                gl_FragColor = vec4(vColor, 0.94);
+            }
+        `;
+
+        function createShader(gl, type, src) {
+            const s = gl.createShader(type);
+            gl.shaderSource(s, src);
+            gl.compileShader(s);
+            return s;
+        }
+
+        const program = gl.createProgram();
+        gl.attachShader(program, createShader(gl, gl.VERTEX_SHADER, vsSource));
+        gl.attachShader(program, createShader(gl, gl.FRAGMENT_SHADER, fsSource));
+        gl.linkProgram(program);
+        gl.useProgram(program);
+
+        // สร้างโครงสร้างพอยเตอร์ 100,000 โหนด ขับเคลื่อนด้วย Quantum Vector Potential Function
+        const count = 100000;
+        const positions = [];
+        const potentials = [];
+        const seeds = [];
+
+        for (let i = 0; i < count; i++) {
+            let x = (Math.random() - 0.5) * 3.2;
+            let y = (Math.random() - 0.5) * 3.2;
+            
+            let r = Math.sqrt(x*x + y*y);
+            // สมการ Vector Potential จำลองภูมิประเทศความลึกสมจริง (Deep Valley & Mountain Ridge)
+            let potential = Math.max(-0.6, (1.6 - r * 0.85)) * (Math.sin(x * 1.5) * Math.cos(y * 1.5) * 0.3 + 0.7);
+            if (r < 0.35) potential = 0.15; // แอ่งกระทะตัวเมืองเชียงใหม่
+
+            positions.push(x, y, -0.35);
+            potentials.push(potential);
+            seeds.push(Math.random());
+        }
+
+        const posBuf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+        const aPos = gl.getAttribLocation(program, 'aPosition');
+        gl.enableVertexAttribArray(aPos);
+        gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 0, 0);
+
+        const potBuf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, potBuf);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(potentials), gl.STATIC_DRAW);
+        const aPot = gl.getAttribLocation(program, 'aPotential');
+        gl.enableVertexAttribArray(aPot);
+        gl.vertexAttribPointer(aPot, 1, gl.FLOAT, false, 0, 0);
+
+        const sBuf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, sBuf);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(seeds), gl.STATIC_DRAW);
+        const aSeed = gl.getAttribLocation(program, 'aSeed');
+        gl.enableVertexAttribArray(aSeed);
+        gl.vertexAttribPointer(aSeed, 1, gl.FLOAT, false, 0, 0);
+
+        const uTime = gl.getUniformLocation(program, 'uTime');
+        const uRotation = gl.getUniformLocation(program, 'uRotation');
+        const uZoom = gl.getUniformLocation(program, 'uZoom');
+
+        let isDragging = false;
+        let prevMousePos = { x: 0, y: 0 };
+        let rotation = { x: 0.45, y: 0.3 };
+        let zoom = 1.0;
+
+        canvas.addEventListener('pointerdown', (e) => {
+            isDragging = true;
+            prevMousePos = { x: e.clientX, y: e.clientY };
+        });
+
+        window.addEventListener('pointermove', (e) => {
+            if (!isDragging) return;
+            let deltaX = e.clientX - prevMousePos.x;
+            let deltaY = e.clientY - prevMousePos.y;
+            rotation.x += deltaX * 0.008;
+            rotation.y += deltaY * 0.008;
+            prevMousePos = { x: e.clientX, y: e.clientY };
+        });
+
+        window.addEventListener('pointerup', () => { isDragging = false; });
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            zoom += e.deltaY * -0.001;
+            zoom = Math.max(0.4, Math.min(2.5, zoom));
+        }, { passive: false });
+
+        let startTime = Date.now();
+        let frameCount = 0;
+        let lastFpsUpdate = performance.now();
+
+        function render(now) {
+            try {
+                let t = (Date.now() - startTime) * 0.001;
+
+                if (!isDragging) {
+                    rotation.x += 0.0015;
+                }
+
+                frameCount++;
+                if (now - lastFpsUpdate >= 500) {
+                    let currentFps = Math.round((frameCount * 1000) / (now - lastFpsUpdate));
+                    hudFps.innerText = currentFps;
+                    frameCount = 0;
+                    lastFpsUpdate = now;
+                }
+
+                gl.viewport(0, 0, canvas.width, canvas.height);
+                gl.clearColor(0.0002, 0.0006, 0.003, 1.0);
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+                gl.uniform1f(uTime, t);
+                gl.uniform2f(uRotation, rotation.x, rotation.y);
+                gl.uniform1f(uZoom, zoom);
+
+                gl.drawArrays(gl.POINTS, 0, count);
+                requestAnimationFrame(render);
+            } catch (err) {
+                console.error("Quantum Field Self-Healing Catch:", err);
+            }
+        }
+        requestAnimationFrame(render);
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth * window.devicePixelRatio;
+            canvas.height = window.innerHeight * window.devicePixelRatio;
+        });
+    </script>
+</body>
+</html>
